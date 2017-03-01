@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>OpenAPI Device Metric Information</title>
+<head>
+    <link rel="stylesheet" rel="stylesheet" type="text/css" href="./css/bootstrap_slate.css">
+    <script type="text/javascript" src="./lib/caHelperFunctions.js"></script>
+    <script type="text/javascript" src="./lib/d3/d3.min.js"></script>
+    <script type="text/javascript" src="./lib/jquery/jquery-1.11.1.min.js"></script>
+    <script type="text/javascript" src="./lib/spin.js"></script>
+    <script type="text/javascript" src="./css/bootstrap.min.js"></script>
+    <script type="text/javascript" src="./lib/d3/d3-jetpack.js"></script>
+</head>
+<body>
+<div id="main" style="padding:1px;width:100%;height:310px;border-style:solid;border-width: 1px;overflow: scroll;"></div>
+<div id="mfMetrics" style="height:330px;padding: 2px;width:50%;left:0px;position: absolute;scroll-behavior: auto;border-style: solid;border-width: 1px;overflow: scroll;"><h4>Metrics in Metric Family</h4>
+	<div id="mfTitle"></div>
+</div>
+<div id="vcExpressions" style="height:330px;padding:2px;width:50%;right:0px;position: absolute;scroll-behavior: auto;border-style: solid;border-width: 1px;overflow: scroll;"><h4>Metric Vendor Cert Expressions</h4>
+	<div id="vcTitle"></div>
+</div>
+<script type="text/javascript">
+
+
+var url  = "/pc/odata/api/metricfamilyhistories?$expand=metricfamilydef,metricdefs&$select=Status,metricfamilydef/ID,metricfamilydef/DisplayName,metricfamilydef/DisplayDescription,VendorCertID,VendorCertDisplayName&$filter=((Status eq 'SUPPORTED') and (device/ID eq " + getQueryVariable("id") + "))";
+
+var finalData=[];
+
+var spinTarget = document.getElementById('main');
+var spinner = new Spinner({color:'white', lines: 12}).spin(spinTarget);
+
+d3.json(url, function (error, data) {
+	if (error) { 
+        alert("Error: " + error)
+        spinner.stop() 
+     }
+    else {
+    	spinner.stop();
+  		data.d.results.forEach(function (d){
+  			var vendorCertFacet=d.VendorCertID;
+  			var certEndPoint=vendorCertFacet.replace("im.ca.com-certifications-snmp-","")
+  			var certRestUrl = "<a href=javascript:getVcDetails('" + certEndPoint + "');>" + d.VendorCertDisplayName + "</a>";
+  			var mfMetricsUrl = "<a href=javascript:showMfMetrics('" + d.metricfamilydef.ID + "','" + certEndPoint + "');>" + d.metricfamilydef.DisplayName + "</a>";
+
+  			console.log("Rest URL: " + certRestUrl);
+  			finalData.push({
+  				metricFamilyName: mfMetricsUrl, //d.metricfamilydef.DisplayName,
+  				metricFamilyDescr: d.metricfamilydef.DisplayDescription,
+  				vendorCert: d.VendorCertDisplayName,//certRestUrl,
+  				metrics: d.metricdefs
+  			})
+  		});
+  		buildTable();
+
+    }
+})
+
+function buildTable(){
+	
+	  	var columns= [ {head: 'Metric Family', html:ƒ('metricFamilyName')},
+                       {head: 'Description', html:ƒ('metricFamilyDescr')},
+                       {head: 'Vendor Cert', html:ƒ('vendorCert')}];
+
+        basicD3Table(finalData,"mfDetails",columns,"#main",false) 
+}
+
+
+function showMfMetrics (mf,vc) {
+
+  var spinTarget = document.getElementById('mfMetrics');
+  var spinner = new Spinner({color:'white', lines: 12}).spin(spinTarget);
+	var url="/pc/odata/api/metricdefs?$filter=((metricfamilydef/ID eq '" + mf + "'))&$format=json"
+	d3.json(url, function (error, metrics){
+
+		if (error) { 
+	        alert("Error: " + error)
+	        spinner.stop() 
+	    }
+	    else {
+	    	spinner.stop();
+	    	var metricInfo=[];
+	    	metrics.d.results.forEach(function (metric){
+	    		metricInfo.push({
+	    			Name: metric.DisplayName,
+	    			Descr: metric.DisplayDescription
+	    		})
+	    	})
+	    	var columns= [ {head: 'Metric', html:ƒ('Name')},
+                       	   {head: 'Description', html:ƒ('Descr')}];
+
+	   		d3.select("#mfMetricsTable").remove();
+
+	   		var title="Metric Family: " + mf;
+       		d3.select("#mfTitle").text(title)
+        	basicD3Table(metricInfo,"mfMetricsTable",columns,"#mfMetrics",false) 
+	    }
+
+	})
+
+	getVcDetails(vc);
+
+}
+
+ function getVcDetails (vc) {
+
+      var url1="/pc/da/typecatalog/certifications/snmp/" + vc;
+        console.log("url1: " + url1);
+
+        var spinTarget = document.getElementById('vcExpressions');
+        var spinner = new Spinner({color:'white', lines: 12}).spin(spinTarget);
+
+        d3.xml(url1, "application/xml", function (error, data) {
+
+            if (error) { 
+                alert("Error: " + error)
+                spinner.stop() 
+            }
+            else {
+                spinner.stop();
+                var data = [].map.call(data.querySelectorAll("Expression"), function(expression) {
+                	return { name: expression.attributes.destAttr.nodeValue,
+                    		 expression: expression.innerHTML };
+                }); 
+            }
+
+            var columns= [ {head: 'Metric', html:ƒ('name')},
+                           {head: 'Vendor Expression', html:ƒ('expression')}];
+
+            d3.select("#vcDetails").remove();
+
+            var title="Vendor Cert: " + vc
+            d3.select("#vcTitle").text(title)
+
+            basicD3Table(data,"vcDetails",columns,"#vcExpressions",false) 
+
+        });
+   }
+
+    
+
+</script>
+</body>
+</html>
