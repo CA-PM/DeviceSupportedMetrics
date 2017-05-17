@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!--
+	v1.1 May 16, 2017	hollu02: added support for "Attributes in VC" and "Variables in VC"
+							fixed issue when selecting non-SNMP VCs, now supporting CAMM VC drill down
+-->
 <html>
 <head>
 <meta charset="UTF-8">
@@ -20,6 +24,14 @@
 <div id="vcExpressions" style="height:330px;padding:2px;width:50%;right:0px;position: absolute;scroll-behavior: auto;border-style: solid;border-width: 1px;overflow: scroll;"><h4>Metric Vendor Cert Expressions</h4>
 	<div id="vcTitle"></div>
 </div>
+<div>
+
+<div id="vcAttributes" style="height:330px;position: absolute;top: 640px;padding: 2px;width:50%;left:0px;scroll-behavior: auto;border-style: solid;border-width: 1px;overflow: scroll;"><h4>Attributes in VC</h4>
+</div>
+<div id="vcVariables" style="height:330px;position: absolute;top: 640px;padding: 2px;width:50%;right:0px;scroll-behavior: auto;border-style: solid;border-width: 1px;overflow: scroll;"><h4>Variables in VC</h4>
+</div>
+
+
 <script type="text/javascript">
 
 
@@ -39,10 +51,21 @@ d3.json(url, function (error, data) {
     	spinner.stop();
   		data.d.results.forEach(function (d){
   			var vendorCertFacet=d.VendorCertID;
-  			var certEndPoint=vendorCertFacet.replace("im.ca.com-certifications-snmp-","")
-  			var certRestUrl = "<a href=javascript:getVcDetails('" + certEndPoint + "');>" + d.VendorCertDisplayName + "</a>";
-  			var mfMetricsUrl = "<a href=javascript:showMfMetrics('" + d.metricfamilydef.ID + "','" + certEndPoint + "');>" + d.metricfamilydef.DisplayName + "</a>";
-
+  			// var certEndPoint=vendorCertFacet.replace("im.ca.com-certifications-snmp-","")
+			var certEndPoint = vendorCertFacet.match(/im.ca.com-certifications-(snmp|ems)-(.+)/);
+			var certRestUrl;
+			var mfMetricsUrl;
+			if (certEndPoint) {					// only show URL for camm and snmp, not for icmp
+				var certType = certEndPoint[1];
+				if (certType == "ems") {
+					certType = "camm";
+				}
+				certRestUrl = "<a href=javascript:getVcDetails('" + certEndPoint[2] + "','" + certType + "');>" + d.VendorCertDisplayName + "</a>";
+				mfMetricsUrl = "<a href=javascript:showMfMetrics('" + d.metricfamilydef.ID + "','" + certEndPoint[2] + "','" + certType +  "');>" + d.metricfamilydef.DisplayName + "</a>";
+  			} else {
+				certRestUrl = d.VendorCertDisplayName;
+				mfMetricsUrl = d.metricfamilydef.DisplayName;
+			}
   			console.log("Rest URL: " + certRestUrl);
   			finalData.push({
   				metricFamilyName: mfMetricsUrl, //d.metricfamilydef.DisplayName,
@@ -66,7 +89,7 @@ function buildTable(){
 }
 
 
-function showMfMetrics (mf,vc) {
+function showMfMetrics (mf, vc, certType) {
 
   var spinTarget = document.getElementById('mfMetrics');
   var spinner = new Spinner({color:'white', lines: 12}).spin(spinTarget);
@@ -97,14 +120,12 @@ function showMfMetrics (mf,vc) {
 	    }
 
 	})
-
-	getVcDetails(vc);
-
+	getVcDetails(vc, certType);
 }
 
- function getVcDetails (vc) {
-
-      var url1="/pc/da/typecatalog/certifications/snmp/" + vc;
+ function getVcDetails (vc, certType) {
+	// certType can be snmp or camm
+      var url1="/pc/da/typecatalog/certifications/" + certType + "/" + vc;
         console.log("url1: " + url1);
 
         var spinTarget = document.getElementById('vcExpressions');
@@ -118,21 +139,38 @@ function showMfMetrics (mf,vc) {
             }
             else {
                 spinner.stop();
-                var data = [].map.call(data.querySelectorAll("Expression"), function(expression) {
+                var data1 = [].map.call(data.querySelectorAll("Expression"), function(expression) {
                 	return { name: expression.attributes.destAttr.nodeValue,
+                    		 expression: expression.innerHTML };
+                }); 
+
+				// hollu02 added attribute name/oid and variable name/expression
+                var data2 = [].map.call(data.querySelectorAll("Attribute"), function(expression) {
+					return { attr: expression.attributes.name.nodeValue,
+                    		 source: expression.querySelector("Source").innerHTML };
+                }); 
+                var data3 = [].map.call(data.querySelectorAll("Variable"), function(expression) {
+					return { variable: expression.attributes.name.nodeValue,
                     		 expression: expression.innerHTML };
                 }); 
             }
 
-            var columns= [ {head: 'Metric', html:ƒ('name')},
+            var columns1 = [ {head: 'Metric', html:ƒ('name')},
                            {head: 'Vendor Expression', html:ƒ('expression')}];
+            var columns2 = [ {head: 'Attribute', html:ƒ('attr')},
+                           {head: 'OID', html:ƒ('source')}];
+            var columns3 = [ {head: 'Variable', html:ƒ('variable')},
+                           {head: 'Expression', html:ƒ('expression')}];
 
             d3.select("#vcDetails").remove();
+            d3.select("#vcAttrSpace").remove();
+            d3.select("#vcVarSpace").remove();
 
             var title="Vendor Cert: " + vc
             d3.select("#vcTitle").text(title)
-
-            basicD3Table(data,"vcDetails",columns,"#vcExpressions",false) 
+            basicD3Table(data1, "vcDetails", columns1, "#vcExpressions", false); 
+            basicD3Table(data2, "vcAttrSpace", columns2, "#vcAttributes", false); 
+            basicD3Table(data3, "vcVarSpace", columns3, "#vcVariables", false); 
 
         });
    }
