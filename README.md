@@ -13,6 +13,8 @@ An interactive view of the Metric Families, Metrics, Vendor Certifications, and 
 5. For any user other than admin you will have to add their username to the netqosportal database on the CAPC server:
 * mysql -D netqosportal
 * update general set value=('admin,username1,username2') where attribute='daProxyValidUsers';
+* commit;
+* quit;
 
 ##Theme Modification
 This App leverages BootStrap to enable simple styling and UI modifications. To modify the theme of the App, edit the index.html file and change the CSS associated with the BootStrap compatible or custom theme.
