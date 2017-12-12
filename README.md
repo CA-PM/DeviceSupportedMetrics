@@ -10,11 +10,19 @@ An interactive view of the Metric Families, Metrics, Vendor Certifications, and 
 2. Add an App View to a Device context page
 3. Select the Metric Family to view the related metrics, and vendor certification expressions
 4. Add URL to app location with key parameters defined (see below)
-5. For any user other than admin you will have to add their username to the netqosportal database on the CAPC server:
+5. For any user other than admin you will have to add their username to the netqosportal database on the CAPC server this can be done in 2 ways via mysql or via the web UI.
+
+#### MYSQL
 * mysql -D netqosportal
 * update general set value=('admin,username1,username2') where attribute='daProxyValidUsers';
 * commit;
 * quit;
+
+#### Web UI
+* you will need an admin level account
+* http://\<PC\>:\<port\>/pc/center/admin/debug/attrs
+* find daProxyValidUsers and add users in comma delimited list to the value section.
+* click the update button at the top left of the page to save your changes
 
 ##Theme Modification
 This App leverages BootStrap to enable simple styling and UI modifications. To modify the theme of the App, edit the index.html file and change the CSS associated with the BootStrap compatible or custom theme.
