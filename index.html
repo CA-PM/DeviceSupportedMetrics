@@ -2,6 +2,7 @@
 <!--
 	v1.1 May 16, 2017	hollu02: added support for "Attributes in VC" and "Variables in VC"
 							fixed issue when selecting non-SNMP VCs, now supporting CAMM VC drill down
+	v1.2 July 24, 2018	hollu02: added support for sdn certifications
 -->
 <html>
 <head>
@@ -52,10 +53,10 @@ d3.json(url, function (error, data) {
   		data.d.results.forEach(function (d){
   			var vendorCertFacet=d.VendorCertID;
   			// var certEndPoint=vendorCertFacet.replace("im.ca.com-certifications-snmp-","")
-			var certEndPoint = vendorCertFacet.match(/im.ca.com-certifications-(snmp|ems)-(.+)/);
+			var certEndPoint = vendorCertFacet.match(/im.ca.com-certifications-(snmp|ems|sdn)-(.+)/);
 			var certRestUrl;
 			var mfMetricsUrl;
-			if (certEndPoint) {					// only show URL for camm and snmp, not for icmp
+			if (certEndPoint) {					// only show URL for camm,sdn and snmp, not for icmp
 				var certType = certEndPoint[1];
 				if (certType == "ems") {
 					certType = "camm";
@@ -141,7 +142,7 @@ function showMfMetrics (mf, vc, certType) {
                 spinner.stop();
                 var data1 = [].map.call(data.querySelectorAll("Expression"), function(expression) {
                 	return { name: expression.attributes.destAttr.nodeValue,
-                    		 expression: expression.innerHTML };
+                    		 expression: expression.firstChild.nodeValue };
                 }); 
 
 				// hollu02 added attribute name/oid and variable name/expression
